@@ -2,10 +2,13 @@ use clap::{Parser, Subcommand};
 use crate::config::Config;
 
 #[derive(Parser, Debug)]
-#[clap(author=Config::AUTHOR, version=Config::VERSION, about=Config::ABOUT, long_about=Config::ABOUT)]
+#[clap(author=Config::AUTHOR, version=Config::VERSION_STRING, about=Config::ABOUT)]
 struct CliArgs {
     #[clap(subcommand)]
-    pub command: Commands,
+    command: Commands,
+
+    // #[clap(short, long, help="Applies action to the whole diary")] # implement later separatly on each sub-command
+    // all: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -23,7 +26,8 @@ impl Commands {
 
     fn test(&self) {
         println!("Testing testing...");
-        println!("Hello World!")
+        println!("Hello World!");
+        println!("It's working lmao");
     }
 }
 
