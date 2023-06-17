@@ -13,8 +13,8 @@ impl Error {
         }
     }
 
-    pub fn throw(origin: &str, error_type: &str, msg: String) {
-        Self::new(origin, error_type, msg).unwrap();
+    pub fn throw<T>(origin: &str, error_type: &str, msg: String) -> T {
+        Self::new(origin, error_type, msg).unwrap::<T>()
     }
 
     pub fn print_err(origin: &str, error_type: &str, msg: String) {
@@ -39,7 +39,7 @@ impl Error {
         format!("[ {0} ] Error: {1} => {2}!", self.origin, self.error_type, self.msg)
     }
 
-    fn unwrap(self) {
+    fn unwrap<T>(self) -> T {
         self.panic_unwrap();
         self.print();
         std::process::exit(1);
