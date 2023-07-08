@@ -4,14 +4,51 @@ use std::io::Write;
 use std::fmt::{Display, self};
 
 pub enum Log<'a> {
-    Raw(String), // basic string
-    Str(&'a str), // basic str
-    Base(&'a str, &'a str, &'a Log<'a>), // Base of every log ( tick, title, body )
-    Wrap(&'a str, &'a Log<'a>, &'a str), // wrapping eg. '['value']'
-    List(&'a Log<'a>, &'a str, &'a Log<'a>), // List with separator
-    Origin(&'a str), // Origin of a log
-    Title(&'a str), // Blue title
-    Red(&'a str), // Red Error
+    /// Basic Owned String
+    /// ```pseudo
+    /// ( String )
+    /// ```
+    Raw(String),
+    /// Basic String Slice
+    /// ```pseudo
+    /// ( &str )
+    /// ```
+    Str(&'a str),
+    /// Default base of every normal log
+    /// ```pseudo
+    /// ( origin: &str, title: &str, body: &Log )
+    /// stdout = "[ " + origin + " ] " + title + " => " + body
+    /// ```
+    Base(&'a str, &'a str, &'a Log<'a>),
+    /// Wraps body with string slices
+    /// ```pseudo
+    /// ( left: &str, body: &Log, right: &str )
+    /// stdout = left + " " + body + " " + right
+    /// ```
+    Wrap(&'a str, &'a Log<'a>, &'a str),
+    /// Separates two elements with a string slice
+    /// ```pseudo
+    /// ( left: &Log, sep: &str, right: &Log )
+    /// stdout = left + sep + right
+    /// ```
+    List(&'a Log<'a>, &'a str, &'a Log<'a>),
+    /// Creates a wrap around an string slice ( commonly used as the origin of a log )
+    /// ```pseudo
+    /// ( body: &str )
+    /// stdout = "[ " + body + " ]"
+    /// ```
+    Origin(&'a str),
+    /// Makes text blue
+    /// ```pseudo
+    /// ( &str )
+    /// ```
+    Title(&'a str),
+    /// Makes text red and bold
+    /// ```pseudo
+    /// ( &str )
+    /// ```
+    Red(&'a str),
+    /// Does absolutely nothing, just a place-holder
     Void,
 }
 
@@ -54,11 +91,19 @@ impl<'a> Log<'a> {
     fn red(log: &str) -> String { Self::colour(log, "\x1b[31;1m") }
 }
 
+/// Logs to stdout
+/// ```pseudo
+/// stdout = "[ " + origin + " ] " + title + " => " + body
+/// ```
 pub fn log(origin: &str, title: &str, body: String) {
     use Log::*;
     Base(origin, title, &Raw(body)).log();
 }
 
+/// Takes in user input
+/// ```pseudo
+/// stdout = "[ " + origin + " ] " + prompt + ": " + stdin
+/// ```
 pub fn input(origin: &str, prompt: &str) -> String {
     let mut user: String = String::new();
     print!("{}", {
@@ -73,6 +118,11 @@ pub fn input(origin: &str, prompt: &str) -> String {
     return user;
 }
 
+
+/// Takes in user input ( only yes or no )
+/// ```pseudo
+/// stdout = "[ " + origin + " ] " + prompt + " [y/n]: " + stdin
+/// ```
 pub fn input_yes_no(origin: &str, prompt: &str) -> bool {
     let yesno: String = input(origin, {
         use Log::*;
