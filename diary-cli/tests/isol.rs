@@ -19,7 +19,7 @@ impl TmpPath {
         if !path_link.exists() {
             match fs::create_dir_all(path_link) {
                 Ok(_) => (),
-                Err(e) => println!("Error: creating directory: {:?}", e),
+                Err(e) => panic!("Error: creating directory: {:?}", e),
             }
         } return Self(path);
     }
