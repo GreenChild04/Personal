@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
-use crate::config::Config;
+use crate::build_config::BuildConfig;
 
 #[derive(Parser, Debug)]
-#[clap(author=Config::AUTHOR, version=Config::VERSION_STRING, about=Config::ABOUT)]
+#[clap(author=BuildConfig::AUTHOR, version=BuildConfig::VERSION_STRING, about=BuildConfig::ABOUT)]
 struct CliArgs {
     #[clap(subcommand)]
     command: Commands,

@@ -1,7 +1,7 @@
-pub mod error;
 use std::io;
 use std::io::Write;
 use std::fmt::{Display, self};
+use crate::error;
 
 pub enum Log<'a> {
     /// Basic Owned String
@@ -68,7 +68,7 @@ impl<'a> Display for Log<'a> {
 
                 // not basic
                 Wrap(a, log, b) => format!( "{0} {1} {2}", Self::blue(a), log, Self::blue(b) ),
-                Base(origin, title, body) => format!( "{0} {1} {2} {3}", Origin(origin), Title(title), Self::blue("=>"), body),
+                Base(origin, title, body) => format!( "{0} {1} {2} {3}", Origin(origin), title, Self::blue(">>"), body),
                 List(x, sep, y) => format!( "{0}{1}{2}", x, Self::blue(sep), y),
                 Origin(x) => format!("{}", Wrap("[", &Title(x), "]")),
             }
@@ -95,9 +95,9 @@ impl<'a> Log<'a> {
 /// ```pseudo
 /// stdout = "[ " + origin + " ] " + title + " => " + body
 /// ```
-pub fn log(origin: &str, title: &str, body: String) {
+pub fn log(origin: &str, title: &str, body: &str) {
     use Log::*;
-    Base(origin, title, &Raw(body)).log();
+    Base(origin, title, &Str(body)).log();
 }
 
 /// Takes in user input
@@ -110,7 +110,7 @@ pub fn input(origin: &str, prompt: &str) -> String {
         use Log::*;
         List(
             &Origin(origin), " ",
-            &List(&Str(prompt), ": ", &Void),
+            &List(&Str(prompt), " << ", &Void),
         )
     });
     io::stdout().flush().unwrap();
@@ -141,8 +141,8 @@ pub fn input_yes_no(origin: &str, prompt: &str) -> bool {
         "y" => true,
         "n" => false,
         _ => {
-            error::Error::print_err(&origin, "Invalid Input", format!("Error expected 'yes' or 'no' not '{yesno}'"));
-            input_yes_no(origin, prompt) 
+            println!("{}", error::init::<String>(&origin, "Invalid Input", &format!("Error expected 'yes' or 'no' not '{yesno}'")).crash());
+            input_yes_no(origin, prompt)
         },
     }
 }

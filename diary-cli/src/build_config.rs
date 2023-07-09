@@ -1,8 +1,8 @@
 use crate::version::Version;
 
-pub struct Config;
+pub struct BuildConfig;
 
-impl Config {
+impl BuildConfig {
     pub const VERSION_STRING: &str = "0.1.0";
     pub const VERSION: Version = Version::new(0, 1, 0);
     pub const AUTHOR: &str = "GreenChild04";

@@ -1,6 +1,6 @@
 mod isol;
 use diary_cli::env::Environment;
-use diary_cli::config::Config;
+use diary_cli::build_config::BuildConfig;
 use isol::*;
 use std::fs;
 
@@ -23,7 +23,7 @@ fn isol_env_load_invalid_init() {
 #[should_panic(expected="Directory not found")]
 fn isol_env_load_missing_dir() {
     let tmp_path: TmpPath = isol::new_env();
-    fs::write(format!("{0}/diary-cli.init", tmp_path.path()), Config::VERSION_STRING).unwrap();
+    fs::write(format!("{0}/diary-cli.init", tmp_path.path()), BuildConfig::VERSION_STRING).unwrap();
     Environment::load(tmp_path.path());
 }
 

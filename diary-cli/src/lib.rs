@@ -1,9 +1,9 @@
 pub use console::*;
 
 pub mod cli;
-pub mod config;
+pub mod build_config;
 pub mod env;
 pub mod console;
 pub mod version;
 pub mod hv;
-// pub mod error;
+pub mod error;
