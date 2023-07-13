@@ -78,7 +78,7 @@ impl<'a> Display for Log<'a> {
 
 impl<'a> Log<'a> {
     pub fn log(self) {
-        println!("{}", self.to_string());
+        println!("{}", self);
     }
 
     // colours
@@ -115,7 +115,7 @@ pub fn input(origin: &str, prompt: &str) -> String {
     });
     io::stdout().flush().unwrap();
     io::stdin().read_line(&mut user).expect("Failed to read line");
-    return user;
+    user
 }
 
 
@@ -141,7 +141,7 @@ pub fn input_yes_no(origin: &str, prompt: &str) -> bool {
         "y" => true,
         "n" => false,
         _ => {
-            println!("{}", error::init::<String>(&origin, "Invalid Input", &format!("Error expected 'yes' or 'no' not '{yesno}'")).crash());
+            println!("{}", error::init::<String>(origin, "Invalid Input", &format!("Error expected 'yes' or 'no' not '{yesno}'")).crash());
             input_yes_no(origin, prompt)
         },
     }

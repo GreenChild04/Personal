@@ -11,7 +11,7 @@ pub struct Version {
 
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{0}.{1}.{2}", self.major, self.minor, self.build)
     }
 }
 
@@ -47,9 +47,5 @@ impl Version {
 
     pub fn is_compatible_or_else<F: FnOnce()>(&self, other: Self, f: F) {
         if !self.is_compatible(other) { f() }
-    }
-
-    pub fn to_string(&self) -> String {
-        format!("{0}.{1}.{2}", self.major, self.minor, self.build)
     }
 }

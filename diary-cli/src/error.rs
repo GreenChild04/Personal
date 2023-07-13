@@ -8,15 +8,15 @@ pub struct ErrorData<T> {
     result: Option<T>,
 }
 
-pub fn from<T, E>(result: Result<T, E>, origin: &str, error_type: &str, msg: String) -> ErrorData<T>
+pub fn from<T, E>(result: Result<T, E>, origin: &str, error_type: &str, msg: &str) -> ErrorData<T>
 where
     E: Debug,
 {
     ErrorData {
         origin: String::from(origin),
         error_type: String::from(error_type),
-        msg,
-        result: if result.is_ok() { Some(result.unwrap()) } else { None }
+        msg: String::from(msg),
+        result: if let Ok(..) = result { Some(result.unwrap()) } else { None }
     }
 }
 
@@ -27,6 +27,20 @@ pub fn init<T>(origin: &str, error_type: &str, msg: &str) -> ErrorData<T> {
         msg: String::from(msg),
         result: None,
     }
+}
+
+pub fn try_do<T, F: Fn() -> Result<T, E>, E: Debug>(origin: &str, error_type: &str, msg: &str, retry_limit: u8, f: F) -> T {
+    let initial = from(f(), origin, error_type, msg);
+    if let Some(..) = initial.result { return initial.result.unwrap() }
+    initial.retry(retry_limit, f)
+}
+
+#[macro_export]
+macro_rules! true_or_throw {
+    ($origin:expr, $error_type:expr, $msg:expr, $condition:expr $(,)? $(;)?) => {{
+        use $crate::error::*;
+        init::<()>($origin, $error_type, &$msg).true_or_throw($condition);
+    }}
 }
 
 impl<T> ErrorData<T> {
@@ -44,12 +58,13 @@ impl<T> ErrorData<T> {
         ).to_string()
     }
 
-    pub fn retry<F: Fn() -> ErrorData<T>>(self, idx: u8, f: F) -> T { // handles error
+    pub fn retry<F: Fn() -> Result<T, E>, E: Debug>(self, idx: u8, f: F) -> T { // handles error
         if self.result.is_some() { return self.result.unwrap() }
         if idx < 1 { return self.crash() }
         println!("{}", self.to_string(false));
         crate::log(&self.origin, "Error Recovery", "Retrying action...");
-        f().retry(idx - 1, f)
+        std::thread::sleep(std::time::Duration::from_millis(500)); // Sleep for half a second
+        f().unwrap_or_else(|_| self.retry(idx - 1, f))
     }
 
     pub fn true_or_throw(self, condition: bool) { // Consumes error
