@@ -8,6 +8,7 @@ pub mod version;
 pub mod hv;
 pub mod error;
 pub mod io;
+pub mod lock;
 
 #[macro_export]
 macro_rules! niceif {
@@ -29,4 +30,12 @@ macro_rules! niceif {
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! bind {
+    ($input:expr; code:block $(;)?) => {{
+        let f = |this| $code;
+        f($input)
+    }}
 }
