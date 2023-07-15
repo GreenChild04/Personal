@@ -34,8 +34,16 @@ macro_rules! niceif {
 
 #[macro_export]
 macro_rules! bind {
-    ($input:expr; code:block $(;)?) => {{
-        let f = |this| $code;
-        f($input)
+    ($input:expr; $code:expr) => {{
+        $code($input)
+    }}
+}
+
+#[macro_export]
+macro_rules! post_process {
+    ($input:expr; $code:expr) => {{
+        let mut obj = $input;
+        $code(&mut obj);
+        return obj;
     }}
 }
