@@ -29,6 +29,16 @@ pub fn init<T>(origin: &str, error_type: &str, msg: &str) -> ErrorData<T> {
     }
 }
 
+// Immedietly crash
+pub fn crash<T>(origin: &str, error_type: &str, msg: &str) -> T {
+    ErrorData {
+        origin: String::from(origin),
+        error_type: String::from(error_type),
+        msg: String::from(msg),
+        result: None,
+    }.crash()
+}
+
 pub fn try_do<T, F: Fn() -> Result<T, E>, E: Debug>(origin: &str, error_type: &str, msg: &str, retry_limit: u8, f: F) -> T {
     let initial = from(f(), origin, error_type, msg);
     if let Some(..) = initial.result { return initial.result.unwrap() }
@@ -37,10 +47,9 @@ pub fn try_do<T, F: Fn() -> Result<T, E>, E: Debug>(origin: &str, error_type: &s
 
 #[macro_export]
 macro_rules! true_or_throw {
-    ($origin:expr, $error_type:expr, $msg:expr, $condition:expr $(,)? $(;)?) => {{
-        use $crate::error::*;
-        init::<()>($origin, $error_type, &$msg).true_or_throw($condition);
-    }}
+    ($origin:expr, $error_type:expr, $msg:expr, $condition:expr $(,)? $(;)?) => {
+        $crate::error::init::<()>($origin, $error_type, &$msg).true_or_throw($condition);
+    }
 }
 
 impl<T> ErrorData<T> {

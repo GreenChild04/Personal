@@ -1,4 +1,3 @@
-pub mod error;
 pub use error::*;
 use std::fmt;
 
@@ -48,4 +47,25 @@ impl Version {
     pub fn is_compatible_or_else<F: FnOnce()>(&self, other: Self, f: F) {
         if !self.is_compatible(other) { f() }
     }
+}
+
+pub mod error {
+    use std::{fmt, error::Error};
+
+    #[derive(Debug)]
+    pub enum VersionError {
+        InvalidSeparator(String),
+        InvalidVersion,
+    }
+
+    impl fmt::Display for VersionError {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match self {
+                VersionError::InvalidSeparator(s) => write!(f, "Invalid Version Separator '{}'", s),
+                VersionError::InvalidVersion => write!(f, "Invalid Version"),
+            }
+        }
+    }
+
+    impl Error for VersionError {}
 }

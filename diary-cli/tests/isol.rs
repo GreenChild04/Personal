@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::Path;
 use rand::{thread_rng, Rng};
+use std::fmt::Display;
+use std::fmt;
 
 pub fn new_env<'a>() -> TmpPath {
     // creates 'test_tmp' folder if it doesn't exist
@@ -23,9 +25,11 @@ impl TmpPath {
             }
         } return Self(path);
     }
+}
 
-    pub fn path(&self) -> &String {
-        &self.0
+impl Display for TmpPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}",  &self.0)
     }
 }
 
