@@ -5,10 +5,10 @@ pub mod build_config;
 pub mod env;
 pub mod console;
 pub mod version;
-pub mod hv;
 pub mod error;
 pub mod io;
 pub mod lock;
+pub mod capsule;
 
 #[macro_export]
 macro_rules! niceif {
