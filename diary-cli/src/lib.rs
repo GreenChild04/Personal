@@ -8,7 +8,6 @@ pub mod version;
 pub mod error;
 pub mod io;
 pub mod lock;
-pub mod capsule;
 
 #[macro_export]
 macro_rules! niceif {
