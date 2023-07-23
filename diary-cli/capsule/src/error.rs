@@ -1,6 +1,6 @@
 use std::{fmt, error::Error};
-pub use crate::gen_error_handler;
-pub use crate::handle;
+pub use crate::handler;
+pub(crate) use crate::handle;
 
 #[derive(Debug)]
 pub enum CapErrContext<'a> {
@@ -25,30 +25,49 @@ impl fmt::Display for CapError {
 
 impl Error for CapError {}
 
-pub trait CapErrHandler<'a> {
-    /// Sets the context of the capsule error
-    fn set_context(&mut self, context: &'a impl Fn() -> CapErrContext<'a>);
-
-    /// Gets the context of the capsule error
-    fn get_context(&self) -> CapErrContext<'a>;
-
+pub trait CapErrHandler {
     /// Initialises handler object for easier passing between functions
-    fn init() -> Self;
+    fn init() -> Self where Self: Sized;
 
     /// Run at runtime when an error occurs rather than returning the error (for performance)
-    fn runtime<T>(&self, error: CapError, context: CapErrContext, retry: Option<&dyn Fn() -> Result<T, CapError>>) -> T;
+    fn runtime<T>(&self, error: CapError, context: &CapErrContext, retry: Option<&dyn Fn() -> Result<T, CapError>>) -> T;
+}
+
+pub(crate) struct ErrHandler<'a, T: CapErrHandler> {
+    handler: T,
+    context: CapErrContext<'a>,
+}
+
+impl<'a, T: CapErrHandler> ErrHandler<'a, T> {
+    pub fn new(handler: T, context: CapErrContext<'a>) -> Self {
+        Self {
+            handler,
+            context,
+        }
+    }
+
+    #[inline]
+    pub fn runtime<TT>(&self, error: CapError, context: &CapErrContext, retry: Option<&dyn Fn() -> Result<TT, CapError>>) -> TT {
+        self.handler.runtime(error, context, retry)
+    }
+
+    #[inline]
+    pub fn context(&self) -> &CapErrContext<'a> { &self.context }
 }
 
 #[macro_export]
-macro_rules! gen_error_handler {
+macro_rules! handler {
     ($($pattern:pat => $result:expr),* $(,)?) => {{
-        pub struct CapErrHandler<'a> { context: &'a dyn Fn() -> CapErrContext<'a> }
-        impl<'a> Clone for CapErrHandler<'a> { fn clone(&self) -> Self { Self::init() } }
-        impl<'a> $crate::error::CapErrHandler<'a> for CapErrHandler<'a> {
-            fn set_context(&mut self, context: &'a impl Fn() -> CapErrContext<'a>) { self.context = context; }
-            fn get_context(&self) -> CapErrContext<'a> { (*self.context)() }
-            fn init() -> Self { Self { context: &|| $crate::error::CapErrContext::Undefined } }
-            fn runtime<T>(&self, error: $crate::error::CapError, context: CapErrContext, retry: Option<&dyn Fn() -> Result<T, $crate::error::CapError>>) -> T {
+        pub struct CapErrHandler;
+        impl Copy for CapErrHandler {}
+        impl Clone for CapErrHandler {
+            #[inline]
+            fn clone(&self) -> Self { Self::init() }
+        }
+        impl $crate::error::CapErrHandler for CapErrHandler {
+            #[inline]
+            fn init() -> Self { Self }
+            fn runtime<T>(&self, error: $crate::error::CapError, context: &CapErrContext, retry: Option<&dyn Fn() -> Result<T, $crate::error::CapError>>) -> T {
                 match (error, context, retry) {
                     $($pattern => $result),*
                 }
@@ -65,7 +84,7 @@ macro_rules! handle {
     (($handler:ident) ($action:expr) => $result:expr) => {{
         let res: Result<_, _> = $action;
         if let Err(e) = res {
-            $handler.runtime($result(e), $handler.get_context(), None)
+            $handler.runtime($result(e), $handler.context(), None)
         } else { res.unwrap() }
     }};
 
@@ -73,7 +92,7 @@ macro_rules! handle {
     (($handler:ident) $action:expr => $result:expr) => {{
         let res: Result<_, _> = $action;
         if let Err(e) = res {
-            $handler.runtime($result(e), $handler.get_context(), Some(&|| {
+            $handler.runtime($result(e), $handler.context(), Some(&|| {
                 let res = $action;
                 if let Err(e) = res {
                     Err($result(e))
@@ -86,7 +105,7 @@ macro_rules! handle {
     (($handler:ident) ($action:expr)) => {{
         let res: Result<_, $crate::error::CapError> = $action;
         if let Err(e) = res {
-            $handler.runtime(e, $handler.get_context(), None)
+            $handler.runtime(e, $handler.context(), None)
         } else { res.unwrap() }
     }};
 
@@ -94,7 +113,7 @@ macro_rules! handle {
     (($handler:ident) $action:expr) => {{
         let res: Result<_, $crate::error::CapError> = $action;
         if let Err(e) = res {
-            $handler.runtime(e, $handler.get_context(), Some(&|| $action))
+            $handler.runtime(e, $handler.context(), Some(&|| $action))
         } else { res.unwrap() }
     }};
 }
