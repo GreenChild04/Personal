@@ -37,7 +37,7 @@ macro_rules! gen_error_handler {
     ($($pattern:pat => $result:expr),* $(,)?) => {{
         pub struct CapErrHandler;
         impl Copy for CapErrHandler {}
-        impl $crate::capsule::error::CapErrHandler for CapErrHandler {
+        impl capsule::error::CapErrHandler for CapErrHandler {
             fn init() -> Self { Self }
             fn runtime<T>(&self, error: capsule::error::CapError, context: CapErrContext, retry: Option<&dyn Fn() -> Result<T, capsule::error::CapError>>) -> T {
                 match (error, context, retry) {
@@ -51,20 +51,27 @@ macro_rules! gen_error_handler {
 }
 
 #[macro_export]
+macro_rules! set_err_context {
+    ($context:expr) => {
+        fn cap_err_context() -> capsule::error::CapErrContext { $context }
+    }
+}
+
+#[macro_export]
 macro_rules! handle {
     // For use on results with other errors (once)
-    (($handler:ident $context:expr) ($action:expr) => $result:expr) => {{
+    (($handler:ident) ($action:expr) => $result:expr) => {{
         let res: Result<_, _> = $action;
         if let Err(e) = res {
-            $handler.runtime($result(e), $context, None)
+            $handler.runtime($result(e), cap_err_context(), None)
         } else { res.unwrap() }
     }};
 
     // For use on results with other errors
-    (($handler:ident $context:expr) $action:expr => $result:expr) => {{
+    (($handler:ident) $action:expr => $result:expr) => {{
         let res: Result<_, _> = $action;
         if let Err(e) = res {
-            $handler.runtime($result(e), $context, Some(&|| {
+            $handler.runtime($result(e), cap_err_context(), Some(&|| {
                 let res = $action;
                 if let Err(e) = res {
                     Err($result(e))
@@ -74,18 +81,18 @@ macro_rules! handle {
     }};
 
     // For use on results with cap errors (once)
-    (($handler:ident $context:expr) ($action:expr)) => {{
+    (($handler:ident) ($action:expr)) => {{
         let res: Result<_, capsule::error::CapError> = $action;
         if let Err(e) = res {
-            $handler.runtime(e, $context, None)
+            $handler.runtime(e, cap_err_context(), None)
         } else { res.unwrap() }
     }};
 
     // For use on results with cap errors
-    (($handler:ident $context:expr) $action:expr) => {{
+    (($handler:ident) $action:expr) => {{
         let res: Result<_, capsule::error::CapError> = $action;
         if let Err(e) = res {
-            $handler.runtime(e, $context, Some(&|| $action))
+            $handler.runtime(e, cap_err_context(), Some(&|| $action))
         } else { res.unwrap() }
     }};
 }
