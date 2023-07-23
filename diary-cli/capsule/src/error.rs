@@ -6,6 +6,7 @@ pub use crate::handle;
 pub enum CapErrContext<'a> {
     WhileZippingFile(&'a str),
     WhileBuildingTarBall(&'a str),
+    Undefined,
 }
 
 #[derive(Debug)]
@@ -24,7 +25,13 @@ impl fmt::Display for CapError {
 
 impl Error for CapError {}
 
-pub trait CapErrHandler {
+pub trait CapErrHandler<'a> {
+    /// Sets the context of the capsule error
+    fn set_context(&mut self, context: &'a impl Fn() -> CapErrContext<'a>);
+
+    /// Gets the context of the capsule error
+    fn get_context(&self) -> CapErrContext<'a>;
+
     /// Initialises handler object for easier passing between functions
     fn init() -> Self;
 
@@ -35,11 +42,13 @@ pub trait CapErrHandler {
 #[macro_export]
 macro_rules! gen_error_handler {
     ($($pattern:pat => $result:expr),* $(,)?) => {{
-        pub struct CapErrHandler;
-        impl Copy for CapErrHandler {}
-        impl capsule::error::CapErrHandler for CapErrHandler {
-            fn init() -> Self { Self }
-            fn runtime<T>(&self, error: capsule::error::CapError, context: CapErrContext, retry: Option<&dyn Fn() -> Result<T, capsule::error::CapError>>) -> T {
+        pub struct CapErrHandler<'a> { context: &'a dyn Fn() -> CapErrContext<'a> }
+        impl<'a> Clone for CapErrHandler<'a> { fn clone(&self) -> Self { Self::init() } }
+        impl<'a> $crate::error::CapErrHandler<'a> for CapErrHandler<'a> {
+            fn set_context(&mut self, context: &'a impl Fn() -> CapErrContext<'a>) { self.context = context; }
+            fn get_context(&self) -> CapErrContext<'a> { (*self.context)() }
+            fn init() -> Self { Self { context: &|| $crate::error::CapErrContext::Undefined } }
+            fn runtime<T>(&self, error: $crate::error::CapError, context: CapErrContext, retry: Option<&dyn Fn() -> Result<T, $crate::error::CapError>>) -> T {
                 match (error, context, retry) {
                     $($pattern => $result),*
                 }
@@ -51,19 +60,12 @@ macro_rules! gen_error_handler {
 }
 
 #[macro_export]
-macro_rules! set_err_context {
-    ($context:expr) => {
-        fn cap_err_context() -> capsule::error::CapErrContext { $context }
-    }
-}
-
-#[macro_export]
 macro_rules! handle {
     // For use on results with other errors (once)
     (($handler:ident) ($action:expr) => $result:expr) => {{
         let res: Result<_, _> = $action;
         if let Err(e) = res {
-            $handler.runtime($result(e), cap_err_context(), None)
+            $handler.runtime($result(e), $handler.get_context(), None)
         } else { res.unwrap() }
     }};
 
@@ -71,7 +73,7 @@ macro_rules! handle {
     (($handler:ident) $action:expr => $result:expr) => {{
         let res: Result<_, _> = $action;
         if let Err(e) = res {
-            $handler.runtime($result(e), cap_err_context(), Some(&|| {
+            $handler.runtime($result(e), $handler.get_context(), Some(&|| {
                 let res = $action;
                 if let Err(e) = res {
                     Err($result(e))
@@ -82,17 +84,17 @@ macro_rules! handle {
 
     // For use on results with cap errors (once)
     (($handler:ident) ($action:expr)) => {{
-        let res: Result<_, capsule::error::CapError> = $action;
+        let res: Result<_, $crate::error::CapError> = $action;
         if let Err(e) = res {
-            $handler.runtime(e, cap_err_context(), None)
+            $handler.runtime(e, $handler.get_context(), None)
         } else { res.unwrap() }
     }};
 
     // For use on results with cap errors
     (($handler:ident) $action:expr) => {{
-        let res: Result<_, capsule::error::CapError> = $action;
+        let res: Result<_, $crate::error::CapError> = $action;
         if let Err(e) = res {
-            $handler.runtime(e, cap_err_context(), Some(&|| $action))
+            $handler.runtime(e, $handler.get_context(), Some(&|| $action))
         } else { res.unwrap() }
     }};
 }
