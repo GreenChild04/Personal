@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 zstd = "0.12.3"
 tar = "0.4.38"
-zip = "0.6.6"
+walkdir = "2.3.3"

@@ -4,6 +4,7 @@ pub(crate) use crate::handle;
 
 #[derive(Debug)]
 pub enum CapErrContext<'a> {
+    WhileZipping(&'a str),
     WhileZippingFile(&'a str),
     WhileBuildingTarBall(&'a str),
     Undefined,
@@ -12,13 +13,17 @@ pub enum CapErrContext<'a> {
 #[derive(Debug)]
 pub enum CapError {
     IOError(std::io::Error),
+    WalkDirError(walkdir::Error),
+    FileNotFound(String),
 }
 
 impl fmt::Display for CapError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use CapError::*;
         match self {
+            FileNotFound(p) => write!(f, "File '{p}' not found"),
             IOError(e) => write!(f, "IO Error: {:?}", e),
+            WalkDirError(e) => write!(f, "WalkDir Error: {:?}", e),
         }
     }
 }
@@ -47,24 +52,22 @@ impl<'a, T: CapErrHandler> ErrHandler<'a, T> {
     }
 
     #[inline]
-    pub fn runtime<TT>(&self, error: CapError, context: &CapErrContext, retry: Option<&dyn Fn() -> Result<TT, CapError>>) -> TT {
-        self.handler.runtime(error, context, retry)
+    pub fn runtime<TT>(&self, error: CapError, retry: Option<&dyn Fn() -> Result<TT, CapError>>) -> TT {
+        self.handler.runtime(error, &self.context, retry)
     }
-
-    #[inline]
-    pub fn context(&self) -> &CapErrContext<'a> { &self.context }
 }
 
 #[macro_export]
 macro_rules! handler {
     ($($pattern:pat => $result:expr),* $(,)?) => {{
-        pub struct CapErrHandler;
-        impl Copy for CapErrHandler {}
-        impl Clone for CapErrHandler {
+        use $crate::error::CapErrHandler;
+        pub struct MyCapErrHandler;
+        impl Copy for MyCapErrHandler {}
+        impl Clone for MyCapErrHandler {
             #[inline]
             fn clone(&self) -> Self { Self::init() }
         }
-        impl $crate::error::CapErrHandler for CapErrHandler {
+        impl $crate::error::CapErrHandler for MyCapErrHandler {
             #[inline]
             fn init() -> Self { Self }
             fn runtime<T>(&self, error: $crate::error::CapError, context: &CapErrContext, retry: Option<&dyn Fn() -> Result<T, $crate::error::CapError>>) -> T {
@@ -74,7 +77,7 @@ macro_rules! handler {
             }
         }
 
-        CapErrHandler::init()
+        MyCapErrHandler::init()
     }}
 }
 
@@ -84,7 +87,7 @@ macro_rules! handle {
     (($handler:ident) ($action:expr) => $result:expr) => {{
         let res: Result<_, _> = $action;
         if let Err(e) = res {
-            $handler.runtime($result(e), $handler.context(), None)
+            $handler.runtime($result(e), None)
         } else { res.unwrap() }
     }};
 
@@ -92,7 +95,7 @@ macro_rules! handle {
     (($handler:ident) $action:expr => $result:expr) => {{
         let res: Result<_, _> = $action;
         if let Err(e) = res {
-            $handler.runtime($result(e), $handler.context(), Some(&|| {
+            $handler.runtime($result(e), Some(&|| {
                 let res = $action;
                 if let Err(e) = res {
                     Err($result(e))
@@ -105,7 +108,7 @@ macro_rules! handle {
     (($handler:ident) ($action:expr)) => {{
         let res: Result<_, $crate::error::CapError> = $action;
         if let Err(e) = res {
-            $handler.runtime(e, $handler.context(), None)
+            $handler.runtime(e, None)
         } else { res.unwrap() }
     }};
 
@@ -113,7 +116,7 @@ macro_rules! handle {
     (($handler:ident) $action:expr) => {{
         let res: Result<_, $crate::error::CapError> = $action;
         if let Err(e) = res {
-            $handler.runtime(e, $handler.context(), Some(&|| $action))
+            $handler.runtime(e, Some(&|| $action))
         } else { res.unwrap() }
     }};
 }
