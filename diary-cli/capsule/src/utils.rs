@@ -1,5 +1,6 @@
-// pub mod ofile;
-// pub use ofile::*;
+pub mod ofile;
+pub use ofile::*;
+pub use crate::unwrap_result;
 
 use std::fs::File;
 use std::path::Path;
@@ -8,6 +9,16 @@ use tar::Builder;
 use zstd::stream::Encoder;
 use crate::error::*;
 use walkdir::WalkDir;
+
+#[macro_export]
+macro_rules! unwrap_result {
+    ($result:expr => $wrapper:expr) => {{
+        let result = $result;
+        if let Err(e) = result {
+            return $wrapper(e);
+        } result.unwrap()
+    }}
+}
 
 pub fn compress_file<'a>(file_path: &'a str, out_path: &str, compression_level: i32, buff_size: usize, handler: impl CapErrHandler) {
     let handler = ErrHandler::new(handler, CapErrContext::WhileZippingFile(file_path));
