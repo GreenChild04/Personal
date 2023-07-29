@@ -5,7 +5,7 @@ pub use ofile_mode::*;
 
 use std::path::Path;
 use crate::unwrap_result;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 
 pub struct OFile {
@@ -73,5 +73,68 @@ impl OFile {
 
         unwrap_result!(writer.write(&[value]) => |e| Err(OFileError::IOError(e)));
         Ok(())
+    }
+
+    pub fn skip<'a>(&'a mut self, amount: u64) -> Result<(), OFileError<'a>> {
+        match &mut self.mode {
+            OFileMode::Write(w) => {
+                for _ in 0..amount {
+                    unwrap_result!(w.write(&[0u8]) => |e| Err(OFileError::IOError(e)));
+                }; Ok(())
+            },
+            OFileMode::Read(r) => {
+                let mut byte = [0u8];
+                for _ in 0..amount {
+                    // Check if reached end of stream
+                    if unwrap_result!(r.read(&mut byte) => |e| Err(OFileError::IOError(e))) == 0 {
+                        return Err(OFileError::EndOfStream);
+                    };
+                }; self.current = Some(byte[0]);
+                Ok(())
+            },
+            OFileMode::Modify(r, w) => {
+                let mut byte = [0u8];
+                for _ in 0..amount {
+                    // Check if reached end of stream
+                    if unwrap_result!(r.read(&mut byte) => |e| Err(OFileError::IOError(e))) == 0 {
+                        return Err(OFileError::EndOfStream);
+                    };
+                    // Write read value to new file
+                    unwrap_result!(w.write(&byte) => |e| Err(OFileError::IOError(e)));
+                }; self.current = Some(byte[0]);
+                Ok(())
+            }
+        }
+    }
+
+    pub fn finish<'a>(&mut self) -> Result<(), OFileError<'a>> {
+        let mut rturn = Ok(());
+
+        // Try to Flush Buffers
+        // If error occurs, program will just continue though return it in the end
+        match &mut self.mode {
+            OFileMode::Read(_) => (),
+            OFileMode::Write(w) => if let Err(e) = w.flush() {rturn = Err(OFileError::IOError(e))},
+            OFileMode::Modify(_, w) => if let Err(e) = w.flush() {rturn = Err(OFileError::IOError(e))},
+        };
+
+        // if mode is modify, rename old file to `<file>.old`, new file to `<file>` and delete the old file
+        if let OFileMode::Modify(_, _) = self.mode {
+            let old_path = format!("{}.old", self.file_path);
+            unwrap_result!(fs::rename(&self.file_path, &old_path) => |e| Err(OFileError::IOError(e)));
+            unwrap_result!(fs::rename(format!("{}.new", self.file_path), &self.file_path) => |e| Err(OFileError::IOError(e)));
+            unwrap_result!(fs::remove_file(old_path) => |e| Err(OFileError::IOError(e)));
+        }
+
+        std::mem::forget(self);
+        rturn
+    }
+}
+
+impl Drop for OFile {
+    #[inline]
+    fn drop(&mut self) {
+        // Ignore errors
+        let _ = self.finish();
     }
 }
