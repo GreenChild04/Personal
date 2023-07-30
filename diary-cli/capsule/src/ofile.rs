@@ -107,7 +107,14 @@ impl OFile {
         }
     }
 
-    pub fn finish<'a>(&mut self) -> Result<(), OFileError<'a>> {
+    #[inline]
+    pub fn finish<'a>(mut self) -> Result<(), OFileError<'a>> {
+        self.flush()?;
+        std::mem::forget(self);
+        Ok(())
+    }
+
+    fn flush<'a>(&mut self) -> Result<(), OFileError<'a>> {
         let mut rturn = Ok(());
 
         // Try to Flush Buffers
@@ -126,7 +133,6 @@ impl OFile {
             unwrap_result!(fs::remove_file(old_path) => |e| Err(OFileError::IOError(e)));
         }
 
-        std::mem::forget(self);
         rturn
     }
 }
@@ -135,6 +141,6 @@ impl Drop for OFile {
     #[inline]
     fn drop(&mut self) {
         // Ignore errors
-        let _ = self.finish();
+        let _ = self.flush();
     }
 }
