@@ -55,7 +55,10 @@ impl OFile {
             return Err(OFileError::EndOfStream);
         };
 
+
+        self.idx += 1;
         self.current = Some(bytes[0]);
+        
         Ok(bytes[0])
     }
 

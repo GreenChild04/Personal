@@ -23,11 +23,14 @@ impl OFileMode {
         let read_file = unwrap_result!(File::open(read_file_path) => |e| Err(OFileError::IOError(e)));
         let mut reader = BufReader::new(read_file);
         let mut writer = BufWriter::new( unwrap_result!(File::create(format!("{read_file_path}.new")) => |e| Err(OFileError::IOError(e))) );
+        let mut past = Option::<u8>::None;
         
         for _ in 0..*idx {
             let mut read = [0u8];
             let bytes_read = unwrap_result!(reader.read(&mut read) => |e| Err(OFileError::IOError(e)));
-            unwrap_result!(writer.write(&read[0..bytes_read]) => |e| Err(OFileError::IOError(e)));
+            if let Some(b) = past {
+                unwrap_result!(writer.write(&[b]) => |e| Err(OFileError::IOError(e)));
+            }; if bytes_read == 1 { past = Some(read[0]) };
         }
         
         Ok(OFileMode::Modify(reader, writer))
