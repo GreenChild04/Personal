@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+  "diary-cli",
+  "capsule",
+]

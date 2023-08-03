@@ -15,7 +15,7 @@ impl Drop for Lock {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub fn file_exists(path: &str) -> bool { Path::new(path).is_file() }
 
 #[inline]
